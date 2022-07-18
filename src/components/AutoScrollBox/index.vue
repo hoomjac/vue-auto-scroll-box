@@ -9,7 +9,11 @@
         @click="handleClick"
       >
         <transition name="notice-slide" @before-enter="onBeforeEnter" @enter="enter" @leave="leave">
-          <div class="notice-item" :style="{ height: boxHeight, lineHeight: boxHeight }" :key="currentItem.id">
+          <div
+            class="notice-item"
+            :style="{ height: boxHeight, lineHeight: boxHeight }"
+            :key="currentItem.__scrollIndex"
+          >
             <slot name="item" v-bind:itemData="currentItem">
               <p style="margin: 0">
                 {{ currentItem.title }}
@@ -58,13 +62,13 @@ export default {
     },
     currentItem() {
       return {
-        id: this.itemIndex,
-        title: this.data[this.itemIndex][this.itemKeyName],
+        ...this.data[this.itemIndex],
+        __scrollIndex: this.itemIndex,
       };
     },
   },
   mounted() {
-    this.scrollMove();
+    this.scroll();
   },
   beforeDestroy() {
     clearTimeout(this.timer);
@@ -84,8 +88,7 @@ export default {
     handleClick() {
       this.$emit('click', this.currentItem);
     },
-    //滚动函数
-    scrollMove() {
+    scroll() {
       this.timer = setTimeout(() => {
         if (this.timer) {
           clearTimeout(this.timer);
@@ -96,16 +99,14 @@ export default {
         } else {
           this.itemIndex += 1;
         }
-        this.scrollMove();
+        this.scroll();
       }, this.interval);
     },
-    //鼠标进入
     mouseEnter() {
       clearTimeout(this.timer);
     },
-    //鼠标离开
     mouseLeave() {
-      this.scrollMove();
+      this.scroll();
     },
   },
 };
@@ -119,6 +120,7 @@ export default {
 }
 .notice-item {
   white-space: nowrap;
+  overflow-x: hidden;
   text-overflow: ellipsis;
   margin: 0;
   width: 100%;
