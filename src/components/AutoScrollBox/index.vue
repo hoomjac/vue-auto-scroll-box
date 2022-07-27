@@ -1,26 +1,12 @@
 <template>
-  <div class="scroll-container">
-    <div>
-      <div
-        class="notice-box"
-        :style="{ height: boxHeight }"
-        @mouseenter="mouseEnter"
-        @mouseleave="mouseLeave"
-        @click="handleClick"
-      >
-        <transition name="notice-slide" @before-enter="onBeforeEnter" @enter="enter" @leave="leave">
-          <div
-            class="notice-item"
-            :style="{ height: boxHeight, lineHeight: boxHeight }"
-            :key="currentItem.__scrollIndex"
-          >
-            <slot name="item" v-bind:itemData="currentItem">
-              <p style="margin: 0">
-                {{ currentItem.title }}
-              </p>
-            </slot>
-          </div>
-        </transition>
+  <div class="vue-auto-scroll-box-container" ref="boxContainer">
+    <div class="notice-box" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
+      <div class="notice-item" v-for="(item, index) in scrollItems" :key="index" @click="handleClick(item)">
+        <slot name="item" v-bind:itemData="item">
+          <p style="margin: 0">
+            {{ item.title }}
+          </p>
+        </slot>
       </div>
     </div>
   </div>
@@ -52,71 +38,79 @@ export default {
   },
   data() {
     return {
-      timer: null,
-      itemIndex: 0,
+      boxRef: null,
     };
+  },
+  mounted() {
+    this.boxRef = this.$refs.boxContainer;
+    this.updateAnimationVar();
   },
   computed: {
     boxHeight() {
       return this.height + 'px';
     },
-    currentItem() {
-      return {
-        ...this.data[this.itemIndex],
-        __scrollIndex: this.itemIndex,
-      };
+    itemLength() {
+      return this.data.length;
     },
-  },
-  mounted() {
-    this.scroll();
+    loopSpeed() {
+      return this.interval / 1000 + 's';
+    },
+    scrollItems() {
+      if (this.itemLength < 1) return [];
+      return [...this.data, this.data[0]];
+    },
+    animationVar() {
+      return `${this.itemLength}${this.height}${this.loopSpeed}`;
+    },
   },
   beforeDestroy() {
     clearTimeout(this.timer);
   },
   methods: {
-    onBeforeEnter(el) {
-      el.style.top = this.boxHeight;
+    updateAnimationVar() {
+      this.boxRef.style.setProperty('--STEP', this.itemLength);
+      this.boxRef.style.setProperty('--ITEM-HEIGHT', this.height);
+      this.boxRef.style.setProperty('--SPEED', this.loopSpeed);
     },
-    enter(el) {
-      setTimeout(() => {
-        el.style.top = 0;
-      }, 0);
+    handleClick(item) {
+      this.$emit('click', item);
     },
-    leave(el) {
-      el.style.top = '-' + this.boxHeight;
+    handleMouseEnter() {
+      console.log('enter');
+      this.boxRef.style.setProperty('--ANIMATION_STATE', 'paused');
     },
-    handleClick() {
-      this.$emit('click', this.currentItem);
+    handleMouseLeave() {
+      this.boxRef.style.setProperty('--ANIMATION_STATE', 'running');
     },
-    scroll() {
-      this.timer = setTimeout(() => {
-        if (this.timer) {
-          clearTimeout(this.timer);
-          this.timer = null;
-        }
-        if (this.itemIndex === this.data.length - 1) {
-          this.itemIndex = 0;
-        } else {
-          this.itemIndex += 1;
-        }
-        this.scroll();
-      }, this.interval);
-    },
-    mouseEnter() {
-      clearTimeout(this.timer);
-    },
-    mouseLeave() {
-      this.scroll();
+  },
+  watch: {
+    animationVar: function () {
+      this.updateAnimationVar();
     },
   },
 };
 </script>
 
 <style scoped>
+div.vue-auto-scroll-box-container {
+  --STEP: 1;
+  --ITEM-HEIGHT: 30;
+  --SPEED: 0.8s;
+  --ANIMATION_STATE: running;
+  width: 100%;
+  overflow-y: hidden;
+  height: calc(var(--ITEM-HEIGHT) * 1px);
+  line-height: calc(var(--ITEM-HEIGHT) * 1px);
+  user-select: none;
+}
+
 .notice-box {
   width: 100%;
-  overflow: hidden;
-  position: relative;
+  height: calc(var(--ITEM-HEIGHT) * 1px);
+  line-height: calc(var(--ITEM-HEIGHT) * 1px);
+  animation: scroll calc(var(--SPEED) * var(--STEP)) steps(var(--STEP)) infinite;
+  animation-fill-mode: forwards;
+  animation-play-state: var(--ANIMATION_STATE);
 }
 .notice-item {
   white-space: nowrap;
@@ -125,11 +119,29 @@ export default {
   margin: 0;
   width: 100%;
   box-sizing: border-box;
-  position: absolute;
-  top: 0;
+  height: calc(var(--ITEM-HEIGHT) * 1px);
+  line-height: calc(var(--ITEM-HEIGHT) * 1px);
+  animation: itemScroll calc(var(--SPEED)) infinite;
+  animation-fill-mode: forwards;
+  animation-play-state: var(--ANIMATION_STATE);
 }
-.notice-slide-enter-active,
-.notice-slide-leave-active {
-  transition: all 0.8s linear;
+
+@keyframes scroll {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(0, calc(var(--STEP) * var(--ITEM-HEIGHT) * -1px));
+  }
+}
+
+@keyframes itemScroll {
+  0% {
+    transform: translate(0, 0);
+  }
+  80%,
+  100% {
+    transform: translate(0, calc(var(--ITEM-HEIGHT) * -1px));
+  }
 }
 </style>
